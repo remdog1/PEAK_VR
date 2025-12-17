@@ -1,3 +1,5 @@
+# NOT COMPATIBLE ANYMORE - NOT WORKING WITH UPDATES PAST 1.44.a !!
+
 ## **Manual Installation:**
 - Extract the PEAK_VR zip file in the game root folder (use steam, on the game, manage, browse game files).
 - This mod uses a virtual gamepad emulation: **YOU MUST INSTALL VigemBus_1.22.0_x64_x86_arm64.exe from the folder bepinex/redist**
@@ -185,3 +187,4 @@ There is NO guarantee that this mod is compatible with other mods !
 - DO NOT UNDER ANY CIRCUMSTANCE COMPLAIN ABOUT BUGS TO THE DEVELOPERS WHILE USING MODS. UNINSTALL MODS IF YOU ENCOUNTER BUGS AND THEN REPORT THEM IF THEY ARE STILL PRESENT.
 
 - Please search the PEAK Steam discussions if you face bugs as they likely could be caused by the game and not the mod.
+
