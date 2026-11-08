@@ -1,0 +1,213 @@
+﻿using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
+
+namespace PeakVR;
+
+internal static class VRHands
+{
+    private static Material handMat;
+    private static Material laserMat;
+
+    private static VRLaser leftLaser;
+    private static VRLaser rightLaser;
+
+    private static LineRenderer interactRay;
+    private static Material interactRayMat;
+    private static bool menuPointersOn;
+
+    public static Transform Left { get; private set; }
+    public static Transform Right { get; private set; }
+
+    public static void Create(Transform rig)
+    {
+        if (Left != null)
+            return;
+
+        Left = CreateHand(rig, "LeftHand", "PeakVR IG Left Hand", out leftLaser);
+        Right = CreateHand(rig, "RightHand", "PeakVR IG Right Hand", out rightLaser);
+        ApplyRotationOffset();
+        interactRay = CreateInteractRay(Right);
+    }
+
+    // The hands are children of the rig, so the GameObjects go with it — this only drops the statics so
+    // a later switch back into VR rebuilds them instead of seeing "already created".
+    public static void Destroy()
+    {
+        if (Left != null)
+            Object.Destroy(Left.parent != null ? Left.parent.gameObject : Left.gameObject);
+        if (Right != null)
+            Object.Destroy(Right.parent != null ? Right.parent.gameObject : Right.gameObject);
+
+        Left = null;
+        Right = null;
+        leftLaser = null;
+        rightLaser = null;
+        interactRay = null;
+        menuPointersOn = false;
+    }
+
+    public static void SetPointersActive(bool on)
+    {
+        menuPointersOn = on;
+
+        if (on)
+            TintLasers();
+
+        if (leftLaser == null || rightLaser == null)
+            return;
+
+        leftLaser.enabled = on;
+        leftLaser.line.enabled = on;
+        rightLaser.enabled = on;
+        rightLaser.line.enabled = on;
+
+        if (on && interactRay != null)
+            interactRay.enabled = false;
+    }
+
+    public static void SetInteractRay(bool show, Vector3 origin, Vector3 end, Color color)
+    {
+        if (interactRay == null)
+            return;
+
+        if (!show || menuPointersOn)
+        {
+            if (interactRay.enabled)
+                interactRay.enabled = false;
+            return;
+        }
+
+        interactRay.enabled = true;
+        interactRay.SetPosition(0, origin);
+        interactRay.SetPosition(1, end);
+
+        if (interactRayMat.HasProperty("_BaseColor"))
+            interactRayMat.SetColor("_BaseColor", color);
+        else
+            interactRayMat.color = color;
+    }
+
+    private static LineRenderer CreateInteractRay(Transform hand)
+    {
+        var obj = new GameObject("PeakVR Interact Ray") { layer = VRLayers.UI };
+        obj.transform.SetParent(hand, false);
+
+        var line = obj.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.widthMultiplier = 0.004f;
+        line.numCapVertices = 4;
+        line.positionCount = 2;
+        line.startColor = line.endColor = Color.white;
+
+        var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        interactRayMat = new Material(shader);
+        line.material = interactRayMat;
+        line.enabled = false;
+        return line;
+    }
+
+    private static Transform CreateHand(Transform rig, string hand, string name, out VRLaser laser)
+    {
+        var pose = new GameObject($"{name} Pose");
+        pose.transform.SetParent(rig, false);
+
+        var obj = new GameObject(name);
+        obj.transform.SetParent(pose.transform, false);
+
+        var pos = new InputAction($"{hand} HandPos", InputActionType.Value,
+            VRControls.PosePositionPath(hand), expectedControlType: "Vector3");
+        var rot = new InputAction($"{hand} HandRot", InputActionType.Value,
+            VRControls.PoseRotationPath(hand), expectedControlType: "Quaternion");
+        pos.Enable();
+        rot.Enable();
+
+        var driver = pose.AddComponent<TrackedPoseDriver>();
+        driver.trackingType = TrackedPoseDriver.TrackingType.RotationAndPosition;
+        driver.updateType = TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
+        driver.positionInput = new InputActionProperty(pos);
+        driver.rotationInput = new InputActionProperty(rot);
+
+        var line = obj.AddComponent<LineRenderer>();
+        line.useWorldSpace = false;
+        line.widthMultiplier = 0.005f;
+        line.numCapVertices = 4;
+        line.positionCount = 2;
+        line.SetPosition(0, Vector3.zero);
+        line.SetPosition(1, Vector3.forward * 5f);
+        line.startColor = line.endColor = Color.cyan;
+        line.material = CreateLaserMaterial();
+        line.enabled = false;
+
+        InputAction trigger = VRControls.Button($"{hand} PointerTrigger", hand, "triggerPressed");
+        trigger.Enable();
+
+        laser = obj.AddComponent<VRLaser>();
+        laser.line = line;
+        laser.trigger = trigger;
+        laser.enabled = false;
+
+        obj.layer = VRLayers.UI;
+
+        if (PeakAssets.Controller != null)
+        {
+            var model = Object.Instantiate(PeakAssets.Controller, obj.transform);
+            model.transform.localPosition = Vector3.zero;
+            model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+            handMat ??= new Material(Shader.Find("Universal Render Pipeline/Lit"))
+            {
+                color = new Color(0.12f, 0.12f, 0.13f)
+            };
+
+            foreach (var r in model.GetComponentsInChildren<Renderer>())
+                r.sharedMaterial = handMat;
+
+            VRControllerVisibility.Register(model);
+        }
+
+        Plugin.Log.LogInfo($"[PeakVR] Created in-game {name}");
+        return obj.transform;
+    }
+
+    public static void ApplyRotationOffset()
+    {
+        if (Plugin.Config == null)
+            return;
+
+        var offset = Quaternion.Euler(new Vector3(
+            Plugin.Config.ControllerOffsetX.Value,
+            Plugin.Config.ControllerOffsetY.Value,
+            Plugin.Config.ControllerOffsetZ.Value) + OpenVRBackend.RotationOffset);
+
+        if (Left != null)
+            Left.localRotation = offset;
+        if (Right != null)
+            Right.localRotation = offset;
+    }
+
+    private static Material CreateLaserMaterial()
+    {
+        if (laserMat != null)
+            return laserMat;
+
+        var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        laserMat = new Material(shader);
+        TintLasers();
+
+        return laserMat;
+    }
+
+    public static void TintLasers()
+    {
+        if (laserMat == null)
+            return;
+
+        var color = Character.localCharacter != null ? VRLine.CharacterColor() : Color.cyan;
+
+        if (laserMat.HasProperty("_BaseColor"))
+            laserMat.SetColor("_BaseColor", color);
+        else
+            laserMat.color = color;
+    }
+}

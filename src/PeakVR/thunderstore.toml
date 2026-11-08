@@ -1,0 +1,62 @@
+[config]
+schemaVersion = "0.0.1"
+
+[general]
+repository = "https://thunderstore.io"
+
+[package]
+namespace = "Andrey04o"
+name = "PeakVR"
+description = "Climbing PEAKs in VR"
+websiteUrl = "https://github.com/Andrey04o/PeakVR"
+containsNsfwContent = false
+
+[package.dependencies]
+BepInEx-BepInExPack_PEAK = "5.4.75301"
+PEAKModding-PEAKLib_Core = "1.7.2"
+PEAKModding-PEAKLib_UI = "1.7.0"
+
+[build]
+icon = "../../icon.png"
+readme = "../../README_Thunderstore.md"
+outdir = "../../artifacts/thunderstore/"
+
+[[build.copy]]
+source = "../../artifacts/bin/PeakVR/release/com.andrey04o.PeakVR.dll"
+target = "plugins/"
+
+[[build.copy]]
+source = "../../Bundles/peakvr"
+target = "plugins/"
+
+[[build.copy]]
+source = "../../RuntimeDeps"
+target = "plugins/RuntimeDeps/"
+
+[[build.copy]]
+source = "../../artifacts/bin/PeakVR/release/LCVR.Preload.dll"
+target = "patchers/"
+
+[[build.copy]]
+source = "../../Preloader/RuntimeDeps"
+target = "patchers/RuntimeDeps/"
+
+[[build.copy]]
+source = "../../CHANGELOG.md"
+target = "/"
+
+[[build.copy]]
+source = "../../LICENSE"
+target = "/"
+
+# The following config options only apply when using TCLI to publish to Thunderstore directly:
+
+[publish]
+# See communities at:
+# https://thunderstore.io/api/experimental/community/
+communities = [ "peak", ]
+
+[publish.categories]
+# See categories at:
+# https://thunderstore.io/api/experimental/community/peak/category/
+peak = [ "mods", "client", ]

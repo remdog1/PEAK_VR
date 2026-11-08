@@ -1,190 +1,156 @@
-# NOT COMPATIBLE ANYMORE - NOT WORKING WITH UPDATES PAST 1.44.a !!
+> **Fork notice:** This repository (remdog1/PEAK_VR) is a fork of [Andrey04o/PeakVR](https://github.com/Andrey04o/PeakVR) (GPL-3.0), based on upstream v1.6.0.
+> Planned additions in this fork: finger tracking synced to other players, manual (hand-over-hand) climbing, and more performance work.
+> The previous VigemBus-based PEAK_VR mod this repo used to describe stopped working after PEAK 1.44.a; its old README is still in the git history.
 
-## **Manual Installation:**
-- Extract the PEAK_VR zip file in the game root folder (use steam, on the game, manage, browse game files).
-- This mod uses a virtual gamepad emulation: **YOU MUST INSTALL VigemBus_1.22.0_x64_x86_arm64.exe from the folder bepinex/redist**
+<p align="center">
+  <img src="https://github.com/Andrey04o/PeakVR/blob/main/Logo.png" alt="PeakVR" width="420">
+</p>
 
-## **Mod managers:**
-If you are already using a mod manager, try to make a copy of the game folder and extract the vr mod zip in this copy if steam allows launching from another folder.
-Unfortunately you will have to put any other mod you wanna use in the game folder in BepInEx/plugins.
-That might break the game or conflict with the mod manager.
+PeakVR is a mod that adds full 6DOF VR support into PEAK.
 
-If you want to stop using the VR mod and use mods from a mod manager again, rename the file in the game root folder "winhttp.dll" to something like "winhttp2.dll".
+This mod, as the Lethal Company VR mod, is powered by Unity's OpenXR plugin, and is thereby compatible with a wide range of headsets and runtimes, like Oculus, Virtual Desktop, SteamVR and many more!
 
+It brings your head and hands into VR with motion controls, but it does **not** add physical, hand-over-hand climbing — you still climb the way the base game does. Don't expect a climbing simulator.
 
-## **VR Runtime and Graphics API:**
-- The game can be run using Vulkan or D3D12. AND the VR mod supports OpenVR by default but can also support OpenXR. Some combinations will crash the game, or not show anything in the VR headset. 
-**There are four possibilites:**
-	- OpenVR+Vulkan **(RECOMMENDED)**
-	- OpenVR+D3D12 (no image in the headset for me)
-	- OpenXR+Vulkan (crashes for me)
-	- OpenXR+D3D12 (works for me, no image on the flatscreen)
-	
-You need to find which combination works for you if OpenVR+Vulkan does not work.
-You can turn on an additional camera if you need to stream or show the spectator view (see UnityVR_Bepinex.cfg below) or use an OpenVR plugin to capture the view from the headset directly.
+Forked from [LCVR](https://github.com/DaXcess/LCVR) by DaXcess.
 
-## **Controls:**
-- VR controllers are mapped as a xbox controller (A,B,X,Y on same buttons, LeftGrip is LB, RightGrip is RB, left trigger is LT, right trigger is RT) BUT for convenience, I swapped some of the controls : X and B are swapped, Left Trigger and Right trigger are swapped. 
-ONSCREEN icons are corrected accordingly.
-- "hotkey gesture" : put your left hand close to the left side of your head (in real life), the controller will vibrate. While it vibrates, the left joystick becomes the D-Pad, left joystick click becomes the "back" button, right joystick click becomes the "start" button.
-- **click both joystick to recenter the VR view** 
-- **THERE ARE TWO types of laser pointers:**
-    - WHITE : used for interactions with kiosk, items, characters, throwing items. It follows the position of your real hand at all times.
-    - RED : used for shootable items, it helps aiming and are attached to the items itself. Shootable items will shoot where they are pointing at.
+# Videos
 
-## **Features:**
-- 3D stereoscopic VR view
-- 6DOF head tracking
-- 6DOF hand tracking
-- bHaptics support
-- Left handed mode : After the first launch with the mod installed, a config file will be created in bepinex/config/ called "PEAK_VR.cfg". Edit this file and change "leftHanded" to "true"
+- [VR gameplay](https://www.youtube.com/watch?v=tGuPRKLCrDk)
+- [Copy Head Rotation, in flat mode](https://www.youtube.com/watch?v=k4QVnr2x-jU)
 
+# Usage
 
-## WHAT THE MOD DOES NOT DO:
-- There is no "hand movement climbing" unfortunately, that would be a huge work to add this if even possible.
-- You cannot see other VR players hands moving in real time because that is not something the game synchronizes and I am not gonna implement it because in VR you know what people do with their hands: Peak is played by a lot of kids and I will not allow this feature to be added to the original game. 
+Install PeakVR with a mod manager (such as [r2modman](https://thunderstore.io/c/peak/p/ebkr/r2modman/), Gale, or the Thunderstore Mod Manager) from the [Thunderstore page](https://thunderstore.io/c/peak/p/Andrey04o/PeakVR/) — dependencies are installed automatically.
 
-## **Config files:**
-In BepInEx/config you will find different files.
+Running the mod using r2modman can be done simply by clicking "Start Modded", which will automatically launch the game with the installed mods.
 
-**=> PEAK_VR.cfg** :
+| Mod version | Tested game version |
+| --- | --- |
+| 1.6.0 | 2.6.b |
+| 1.5.0 | 2.4.b |
+| 1.4.1 | 2.1.a |
+| 1.4.0 | 2.0.a |
+| 1.3.0 | 1.65.a |
+| 1.2.0 | 1.65.a |
+| 1.1.0 | 1.64.a and 0.65.d (beta) |
+| 1.0.0 | 1.64.a and 0.65.d (beta) |
 
-~~~
-## Settings file was created by plugin PEAK_VR v1.0.0
-## Plugin GUID: PEAK_VR
+# Switching between VR and flat mode
 
-[General]
+Press **F11** at any time to switch between VR and flat mode.
 
-## UI mode
-# Setting type: String
-# Default value: frontOfCam
-# Acceptable values: frontOfGameCam, headFixed
-UIMode = frontOfGameCam
+# Funny tip
 
-## AttachUIToHand only works with UI mode frontOfGameCam
-# Setting type: String
-# Default value: false
-# Acceptable values: true, false
-AttachUIToHand = false
+DirectX 11 can give you an extra **10–27 FPS**! Add the launch option `-force-d3d11` to start the game in DirectX 11.
 
-## Fog and other overlay effects can be a little weird in headset, disable if you don't like it
-# Setting type: String
-# Default value: false
-# Acceptable values: false, true
-disableFog = false
+# Controls
 
-## Aim with hand or head
-# Setting type: String
-# Default value: hand
-# Acceptable values: hand, head
-aimingMode = hand
-
-## left Handed mode
-# Setting type: String
-# Default value: false
-# Acceptable values: false, true
-leftHanded = false
-~~~
-
-- UIMode : three UI modes available
-	- UIMode = frontOfGameCam + AttachUIToHand = false: flat in front of the game camera, follows game camera rotation, NOT the head rotations.
-	- UIMode = frontOfGameCam + AttachUIToHand = true: attaches the UI (stamina and inventory) to the right hand, the rest is in front of the head.
-	- UIMode = headFixed: everything is fixed relative to VR head and follows head movements.
-
-You can change those values to create your own prefered UI mode. Find the UI that suits you the best.
-
-- The fog ingame has a visual issue where both eyes don't show exactly the same thing, it can be annoying but is a minor issue, if you find it too annoying you can disable it here.
-- Default aiming method is right hand aiming. If you prefer head aiming you can change it here and replace "aimingMode = hand" with "aimingMode = head". (ONLY works with interactions, shootable items will require using your hand)
-- When using leftHanded mode, buttons mapping stays the same !! It only affects aiming hand and shooting hand.
+![Controls](https://github.com/Andrey04o/PeakVR/blob/main/controls.png)
 
 
-**=> UnityVR_Bepinex.cfg**
+| Select an item slot | Open the emote wheel |
+| --- | --- |
+| ![Pointing the left controller at the wrist item bar to select a slot](https://github.com/Andrey04o/PeakVR/blob/main/screenshot1.jpg) | ![Pointing the right controller at the wrist emote button](https://github.com/Andrey04o/PeakVR/blob/main/screenshot2.jpg) |
 
-```
-## Use OpenVR or OpenXR
-# Setting type: String
-# Default value: OpenVR
-# Acceptable values: OpenXR, OpenVR
-vrApi = OpenVR
+The rest of this README only outlines how to build and install the mod manually from source.
+
+# Building from source
+
+## Build
+
+Requires the [.NET SDK](https://dotnet.microsoft.com/download) 8.0 or newer and PEAK installed (the build references the game's assemblies).
+
+```sh
+git clone https://github.com/Andrey04o/PeakVR.git
+cd PeakVR
+dotnet build
 ```
 
-- the vr mod uses OpenVR. If you want to use OpenXR, edit the file and search for "vrApi" (at the top of the file) and change "vrApi = OpenVR" to "vrApi = OpenXR".
+This compiles the plugin and copies `com.andrey04o.PeakVR.dll` into the game's `BepInEx/plugins/` folder. 
 
-- If you need to turn on the spectator view change this setting to true:
-```
-## Create custom mirror view for flatscreen, useful for Unity 6
-# Setting type: String
-# Default value: false
-createMirrorView = true
-```
+If PEAK isn't at the default Steam path, copy `Config.Build.user.props.template` to `Config.Build.user.props` and set `PeakGameRootDir` / `PeakPluginsDir`.
 
-- **LEAVE ALL the rest as it is :)**
+The preloader (`LCVR.Preload.dll`) is built alongside the plugin and belongs in `BepInEx/patchers/`.
 
-**=> BepInEx.cfg**
+## Thunderstore packaging
 
-!! the game is known to crash if the logging console is active, at least on first launch. So it is disabled by default. After a successful launch, I highly recommend you change these values, so that the log file can be created.
+Uses [TCLI](https://github.com/thunderstore-io/thunderstore-cli):
 
-```
-[Logging.Console]
 
-## Enables showing a console for log output.
-# Setting type: Boolean
-# Default value: false
-Enabled = true
+It also copying the `RuntimeDeps` and `Bundles` folders into the packge:
 
-[Logging.Disk]
-
-## Include unity log messages in log file output.
-# Setting type: Boolean
-# Default value: false
-WriteUnityLog = true
-
-## Enables writing log messages to disk.
-# Setting type: Boolean
-# Default value: true
-Enabled = true
+```sh
+dotnet tool restore
+dotnet build -c Release -target:PackTS -v d
 ```
 
-## **Known issues:**
-- Depending on your pc + headset configuration, launching the game with OpenVR or OpenXR and Vulkan or D3D12 will produce different results. For me here are the combinations :
-OpenVR + Vulkan : VR ok, flatscreen not ok
-OpenVR + D3D12: VR no image, flatscreen image ok
-OpenXR + Vulkan: crash
-OpenXR + D3D12: VR image ok, flatscreen image not ok
+The package is written to `artifacts/thunderstore/`.
 
-- The mod does not allow keyboard and mouse control, the input scheme is LOCKED to gamepad. This is to prevent the game from constantly switching between xbox controller and whatever VR controller it recognizes as a gamepad !
+## Runtime dependencies
 
-- The fog ingame has a visual issue where both eyes don't show exactly the same thing, as stated in the config section above.
+The plugin needs a `RuntimeDeps` folder containing the Unity XR managed assemblies, which are also not included in the repository. You can extract them from the [Thunderstore package](https://thunderstore.io/c/peak/p/Andrey04o/PeakVR/), or retrieve them from a Unity project yourself (see below). For a manual install, place the `RuntimeDeps` folder next to the plugin DLL in `BepInEx/plugins/`.
 
-- Binoculars are not working in VR.
+### Retrieving Runtime Dependencies from a Unity Project
 
-## **Troubleshooting:**
+> You can skip this part if you have taken the runtime dependencies from the Thunderstore package.
 
-- **if you installed the mod manually and want to deactivate the mod without uninstalling it, just rename the file "winhttp.dll" in the game root folder to anything else, like "winhttp2.dll"**
+First install Unity 6000.3.15f1, which is the Unity version that PEAK uses. Once you have the editor, create a new project. Then install these packages:
 
-- If using Virtual Desktop, make sure you don't have any gamepad emulation active: in the headset, in "input", nothing should be checked on the right side (Gamepad, Dpad)
+- OpenXR Plugin
+- XR Core Utilities
+- XR Interaction Toolkit
 
-- When VR is launched, you should hear a "windows sound" similar to "usb device connected", meaning that Vigem bus driver is working properly. If you don't hear this sound, reinstall Vigem and/or reboot your pc and try again.
+Then enable **OpenXR** under **Project Settings / XR Plug-in Management / Plug-in Providers** (otherwise the XR DLLs won't be built):
 
-- gamepad icons and interactions icons can be messed up, it does happen in the original game too when using a gamepad, after a few item uses, it should fix itself (this is a game original bug, not the mod).
+![Enable OpenXR in XR Plug-in Management](OpenXRPlugin.jpg)
 
-- VR hand use Inverse Kinematics, that "tries to force" the hand object to a target position and articulate the skeleton accordingly but with this skeleton length restrictions. Meaning that the hands won't be at the exact positions of your VR controllers. Every body parts has collision and physics, so there are positions that are not possible.
+You can now build the dummy game. Make sure the scripting backend is set to Mono, not IL2CPP. Once it is built, navigate to its `<Project Name>_Data/Managed` directory and extract the following files into your `RuntimeDeps` folder:
 
-- if you're having performance issues lower your settings ingame : lower max fps to 100 or under, disable Ambient Occlusion, lower the headset resolution IN STEAMVR, the game resolution does not affect the VR resolution.
+- UnityEngine.SpatialTracking.dll
+- Unity.XR.CoreUtils.dll
+- Unity.XR.Interaction.Toolkit.dll
+- Unity.XR.Management.dll
+- Unity.XR.OpenXR.dll
 
-- if your hands are a bit weirdly positioned, make sure you are properly centered, using first steamVR recenter function, then click both joysticks, in this order. Hands use physics and have collisions, they will do weird stuff.
+From the same build's `<Project Name>_Data/Plugins/x86_64` directory extract these files into the `Preloader/RuntimeDeps` folder:
 
-- if using Virtual Desktop, in the headset app, in the input section, make sure there is no gamepad emulation checked at all.
+- openxr_loader.dll
+- UnityOpenXR.dll
 
-- if you have issues with the UI when using the headFixed UI (too small, too big, out of view), change the game resolution in settings. Try using 1920x1080 for a medium scaling.
+### OpenVR backend
 
-- if using Vulkan and it crashes the game, run the game in flat mode (rename winhttp.dll) and go to the settings. Turn Ambient Occlusion OFF and reduce the max fps under 120.
+This mod adds SteamVR through OpenVR as a fallback. Take them from Valve's [OpenVR XR Plugin](https://github.com/ValveSoftware/unity-xr-plugin) (`com.valve.openvr/Runtime/x64/`) and place them in `Preloader/RuntimeDeps/`:
 
-## **Other mods compatibility:**
-There is NO guarantee that this mod is compatible with other mods !
+- XRSDKOpenVR.dll
+- openvr_api.dll
 
-## **Important**
-- DO NOT UNDER ANY CIRCUMSTANCE COMPLAIN ABOUT BUGS TO THE DEVELOPERS WHILE USING MODS. UNINSTALL MODS IF YOU ENCOUNTER BUGS AND THEN REPORT THEM IF THEY ARE STILL PRESENT.
+## Asset bundle
 
-- Please search the PEAK Steam discussions if you face bugs as they likely could be caused by the game and not the mod.
+The plugin loads a `peakvr` asset bundle that is not included in this repository. Build it from the Unity project [PeakVR-Assets](https://github.com/Andrey04o/PeakVR-Assets): open the project and run **`Assets/Build PeakVR AssetBundle`** from the menu bar. Put the `peakvr` file into the `Bundles` folder.
 
+## Debug keys
+
+Launch the game with the `-vr-debugbuttons` argument to enable developer hotkeys.
+
+# Used Assets
+
+- VR controller FBX model — Unity VR Template
+- [Input Prompts (1.5A)](https://kenney.nl/assets/input-prompts) — created/distributed by [Kenney](https://www.kenney.nl), Creative Commons Zero (CC0)
+- [ModConfig](https://github.com/PEAKModding/PEAKLib) — PEAK Modding, MIT License
+- [OpenVR Unity XR plugin](https://github.com/ValveSoftware/unity-xr-plugin) (XRSDKOpenVR, openvr_api) — Copyright (c) Valve Corporation, BSD 3-Clause License
+
+# Support the mod
+
+If PeakVR is useful to you, you can support its development:
+
+- [Boosty](https://boosty.to/04o)
+- [Patreon](https://www.patreon.com/cw/04o)
+
+You can also find my other games on [itch.io](https://andrey04o.itch.io/).
+
+# Contact
+
+- Bug reports and feature requests: [GitHub issues](https://github.com/Andrey04o/PeakVR/issues)
+- [PEAK Modding Community](https://discord.gg/SAw86z24rB) Discord server - the [PeakVR chat](https://discord.com/channels/1363179626435707082/1530848108853067786)
+- Or message me directly - Discord: `andrey04o`, Telegram: [@andrey04o](https://t.me/andrey04o)

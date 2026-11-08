@@ -1,0 +1,533 @@
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using Zorro.Core;
+
+namespace PeakVR;
+
+[DefaultExecutionOrder(1250)]
+internal class VRControllerHud : MonoBehaviour, IVRRestorable
+{
+    private const float Scale = 0.0007f;
+    private const float ItemSpacing = 90f;
+    public const int HudLayer = 3;
+    private const float PointerMaxDistance = 1.5f;
+    private const float HoverScale = 1.14f;
+    private const float LateSweepDelay = 5f;
+    private const int RefreshInterval = 30;
+    private float lateSweepAt;
+    private bool lateSweepDone;
+    private int frame;
+    private RectTransform promptsRoot;
+
+    private const float PromptsY = 165f;
+    private const float PromptSpacing = 0f;
+
+    private static readonly Vector3 LeftPos = new(0f, 0.03f, -0.06f);
+    private static readonly Vector3 RightPos = new(0f, 0.03f, -0.06f);
+    private static readonly Vector3 LeftEuler = new(0f, 90f, 90f);
+    private static readonly Vector3 RightEuler = new(0f, -90f, -90f);
+
+    public static bool LeftTriggerConsumed { get; private set; }
+
+    public static Transform LeftHud => instance != null && instance.left != null ? instance.left.transform : null;
+
+    private static VRControllerHud instance;
+
+    internal static Canvas LeftHudCanvas;
+
+    private Canvas left;
+    private Canvas right;
+
+    private void Awake() => instance = this;
+    private bool moved;
+
+    private readonly VRRestore restore = new();
+    private readonly List<GameObject> hidden = new();
+    private readonly Dictionary<TextMeshProUGUI, TextAlignmentOptions> promptAlignment = new();
+
+    private readonly List<CellTarget> targets = new();
+    private LineRenderer pointer;
+    private Material pointerMat;
+    private Transform hoveredCell;
+
+    private struct CellTarget
+    {
+        public Collider collider;
+        public Transform cell;
+        public byte slot;
+    }
+
+    private void LateUpdate()
+    {
+        var profile = VRProfile.Begin();
+        LateUpdateBody();
+        VRProfile.End(VRProfile.Hud, profile);
+    }
+
+    private void LateUpdateBody()
+    {
+        LeftTriggerConsumed = false;
+
+        if (!Plugin.VrEnabled || VRHands.Left == null || VRHands.Right == null)
+            return;
+
+        var gui = GUIManager.instance;
+        if (gui == null || gui.staminaCanvasGroup == null || gui.items == null || gui.items.Length == 0)
+            return;
+
+        if (!moved || gui.staminaCanvasGroup.transform.parent != left.transform)
+            MoveHud(gui);
+
+        if (!lateSweepDone && Time.time >= lateSweepAt)
+        {
+            lateSweepDone = true;
+            HideInputPrompts(left);
+            HideInputPrompts(right);
+        }
+
+        UpdateBackface();
+        UpdateSelection();
+
+        if (++frame % RefreshInterval == 0)
+        {
+            Refresh(left);
+            Refresh(right);
+            StaminaBarRectPatch.Apply();
+        }
+    }
+
+    private static void Refresh(Canvas canvas)
+    {
+        UIOverlay.SweepForegroundLayer(canvas);
+        UIOverlay.MakeAlwaysVisible(canvas, UIOverlay.HandQueue);
+    }
+
+    private void RecordOriginals(GUIManager gui)
+    {
+        restore.Record(gui.staminaCanvasGroup.transform);
+
+        for (var i = 0; i < gui.items.Length; i++)
+            if (gui.items[i] != null)
+                restore.Record(gui.items[i].transform);
+
+        if (gui.backpack != null)
+            restore.Record(gui.backpack.transform);
+
+        if (gui.temporaryItem != null)
+            restore.Record(gui.temporaryItem.transform);
+
+        foreach (var prompt in Prompts(gui))
+            if (prompt != null)
+                restore.Record(prompt.transform);
+    }
+
+    private static TextMeshProUGUI[] Prompts(GUIManager gui) => new[]
+    {
+        gui.itemPromptMain, gui.itemPromptSecondary, gui.itemPromptScroll,
+        gui.itemPromptDrop, gui.itemPromptThrow
+    };
+
+    private void MoveHud(GUIManager gui)
+    {
+        EnsureCanvases();
+        ClearTargets();
+        RecordOriginals(gui);
+
+        Center(gui.staminaCanvasGroup.transform, left, Vector2.zero);
+
+        var startX = -(gui.items.Length - 1) * ItemSpacing * 0.5f;
+        for (var i = 0; i < gui.items.Length; i++)
+        {
+            if (gui.items[i] != null)
+            {
+                Center(gui.items[i].transform, right, new Vector2(startX + i * ItemSpacing, 0f));
+                RegisterCell(gui.items[i].transform, (byte)i);
+            }
+        }
+
+        if (gui.backpack != null)
+        {
+            Center(gui.backpack.transform, right, new Vector2(startX + gui.items.Length * ItemSpacing, 0f));
+            RegisterCell(gui.backpack.transform, 3);
+        }
+
+        if (gui.temporaryItem != null)
+        {
+            Center(gui.temporaryItem.transform, right, new Vector2(startX - ItemSpacing, 0f));
+            RegisterCell(gui.temporaryItem.transform, 250);
+        }
+
+        HideInputPrompts(left);
+        HideInputPrompts(right);
+
+        MovePrompts(gui);
+
+        UIOverlay.MakeAlwaysVisible(left, UIOverlay.HandQueue);
+        UIOverlay.MakeAlwaysVisible(right, UIOverlay.HandQueue);
+
+        VRLayers.HideFromMirror(left.gameObject, HudLayer, 7);
+        VRLayers.HideFromMirror(right.gameObject, HudLayer, 7);
+
+        lateSweepAt = Time.time + LateSweepDelay;
+        lateSweepDone = false;
+
+        moved = true;
+        Plugin.Log.LogInfo("[PeakVR] HUD moved onto controllers");
+    }
+
+    private void MovePrompts(GUIManager gui)
+    {
+        TextMeshProUGUI[] prompts =
+        {
+            gui.itemPromptMain, gui.itemPromptSecondary, gui.itemPromptScroll,
+            gui.itemPromptDrop, gui.itemPromptThrow
+        };
+
+        var go = new GameObject("PeakVR ItemPrompts", typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        promptsRoot = rt;
+        rt.SetParent(right.transform, false);
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(0f, PromptsY);
+        rt.sizeDelta = new Vector2(420f, 140f);
+        rt.localScale = Vector3.one;
+        rt.localRotation = Quaternion.identity;
+
+        var layout = go.AddComponent<VerticalLayoutGroup>();
+        layout.childAlignment = TextAnchor.LowerRight;
+        layout.childControlWidth = true;
+        layout.childForceExpandWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandHeight = false;
+        layout.spacing = PromptSpacing;
+
+        var count = 0;
+        foreach (var prompt in prompts)
+        {
+            if (prompt == null)
+                continue;
+
+            var pt = prompt.transform;
+            restore.Record(pt);
+            pt.SetParent(rt, false);
+            pt.localScale = Vector3.one;
+            pt.localRotation = Quaternion.identity;
+
+            if (pt is RectTransform prt)
+                prt.anchorMin = prt.anchorMax = prt.pivot = new Vector2(0.5f, 0.5f);
+
+            promptAlignment.Add(prompt, prompt.alignment);
+            prompt.alignment = TextAlignmentOptions.Right;
+            count++;
+        }
+
+        Plugin.Log.LogInfo($"[PeakVR] Item prompts moved to the right wrist canvas ({count})");
+    }
+
+    private void HideInputPrompts(Canvas canvas)
+    {
+        if (canvas == null)
+            return;
+
+        foreach (var prompt in canvas.GetComponentsInChildren<InLineInputPrompts>(true))
+        {
+            if (promptsRoot != null && prompt.transform.IsChildOf(promptsRoot))
+                continue;
+
+            if (prompt.gameObject.activeSelf)
+                hidden.Add(prompt.gameObject);
+            prompt.gameObject.SetActive(false);
+        }
+
+        foreach (var icon in canvas.GetComponentsInChildren<InputIcon>(true))
+        {
+            if (promptsRoot != null && icon.transform.IsChildOf(promptsRoot))
+                continue;
+
+            if (icon.gameObject.activeSelf)
+                hidden.Add(icon.gameObject);
+            icon.gameObject.SetActive(false);
+        }
+    }
+
+    public void RestoreForFlat()
+    {
+        if (!moved)
+            return;
+
+        moved = false;
+        ClearTargets();
+        SetHover(null);
+
+        foreach (var prompt in promptAlignment)
+            if (prompt.Key != null)
+                prompt.Key.alignment = prompt.Value;
+        promptAlignment.Clear();
+
+        var count = restore.RestoreAll();
+
+        foreach (var go in hidden)
+            if (go != null)
+                go.SetActive(true);
+        hidden.Clear();
+
+        if (promptsRoot != null)
+            Destroy(promptsRoot.gameObject);
+        promptsRoot = null;
+
+        if (left != null)
+            Destroy(left.gameObject);
+        if (right != null)
+            Destroy(right.gameObject);
+
+        left = null;
+        right = null;
+        LeftHudCanvas = null;
+
+        Plugin.Log.LogInfo($"[PeakVR] HUD returned to the screen ({count} element(s))");
+    }
+
+    private void UpdateBackface()
+    {
+        if (MainCamera.instance == null)
+            return;
+
+        var camPos = MainCamera.instance.cam.transform.position;
+        SetVisible(left, camPos);
+        SetVisible(right, camPos);
+    }
+
+    private static void SetVisible(Canvas canvas, Vector3 camPos)
+    {
+        if (canvas == null)
+            return;
+
+        var facing = Vector3.Dot(canvas.transform.forward, camPos - canvas.transform.position) < 0f;
+        if (canvas.enabled != facing)
+            canvas.enabled = facing;
+    }
+
+    private void UpdateSelection()
+    {
+        EnsurePointer();
+
+        var local = Character.localCharacter;
+        var active = right != null && right.enabled && VRPointer.Canvas == null
+            && local != null && !local.data.fullyPassedOut;
+
+        if (!active)
+        {
+            SetHover(null);
+            if (pointer != null)
+                pointer.enabled = false;
+            return;
+        }
+
+        if (VRHands.Left == null)
+        {
+            SetHover(null);
+            pointer.enabled = false;
+            return;
+        }
+
+        var origin = VRHands.Left.position;
+        var dir = VRHands.Left.forward;
+
+        var hasHit = Physics.Raycast(origin, dir, out var rayHit, PointerMaxDistance, 1 << HudLayer,
+            QueryTriggerInteraction.Collide);
+
+        Transform hitCell = null;
+        byte hitSlot = 0;
+        if (hasHit)
+        {
+            foreach (var t in targets)
+            {
+                if (t.collider == rayHit.collider)
+                {
+                    hitCell = t.cell;
+                    hitSlot = t.slot;
+                    break;
+                }
+            }
+        }
+
+        var onCell = hitCell != null;
+
+        var showLine = VRLine.ShouldShow(Plugin.Config.HudLine.Value, onCell);
+        pointer.enabled = showLine;
+        if (showLine)
+        {
+            pointer.SetPosition(0, origin);
+            pointer.SetPosition(1, onCell ? rayHit.point : origin + dir * PointerMaxDistance);
+            SetPointerColor(onCell);
+        }
+
+        SetHover(hitCell);
+
+        if (onCell)
+        {
+            LeftTriggerConsumed = true;
+            if (VRControls.LeftTrigger != null && VRControls.LeftTrigger.WasPressedThisFrame())
+                SelectSlot(hitSlot);
+        }
+    }
+
+    private void SetHover(Transform cell)
+    {
+        if (hoveredCell == cell)
+            return;
+
+        if (hoveredCell != null)
+            hoveredCell.localScale = Vector3.one;
+
+        hoveredCell = cell;
+
+        if (hoveredCell != null)
+            hoveredCell.localScale = Vector3.one * HoverScale;
+    }
+
+    private static void SelectSlot(byte slot)
+    {
+        var ch = Character.localCharacter;
+        if (ch == null || ch.refs == null || ch.refs.items == null)
+            return;
+
+        var items = ch.refs.items;
+        if (items.currentSelectedSlot.IsSome && items.currentSelectedSlot.Value == slot)
+            items.EquipSlot(Optionable<byte>.None);
+        else
+            items.EquipSlot(Optionable<byte>.Some(slot));
+
+        if (slot == 3 && ch.data != null && ch.data.carriedPlayer != null && ch.refs.carriying != null)
+            ch.refs.carriying.Drop(ch.data.carriedPlayer);
+    }
+
+    private void RegisterCell(Transform cell, byte slot)
+    {
+        if (cell == null)
+            return;
+
+        var size = cell is RectTransform rt ? rt.rect.size : new Vector2(80f, 80f);
+        if (size.x < 1f) size.x = 80f;
+        if (size.y < 1f) size.y = 80f;
+
+        var go = new GameObject("PeakVR HudCollider") { layer = HudLayer };
+        go.transform.SetParent(cell, false);
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localRotation = Quaternion.identity;
+        go.transform.localScale = Vector3.one;
+
+        var box = go.AddComponent<BoxCollider>();
+        box.isTrigger = true;
+        box.size = new Vector3(size.x, size.y, 40f);
+
+        targets.Add(new CellTarget { collider = box, cell = cell, slot = slot });
+    }
+
+    private void ClearTargets()
+    {
+        foreach (var t in targets)
+        {
+            if (t.cell != null)
+                t.cell.localScale = Vector3.one;
+            if (t.collider != null)
+                Destroy(t.collider.gameObject);
+        }
+        targets.Clear();
+        hoveredCell = null;
+    }
+
+    private void EnsurePointer()
+    {
+        if (pointer != null)
+            return;
+
+        var go = new GameObject("PeakVR HudPointer") { layer = VRLayers.UI };
+        go.transform.SetParent(VRHands.Left, false);
+
+        pointer = go.AddComponent<LineRenderer>();
+        pointer.useWorldSpace = true;
+        pointer.widthMultiplier = 0.004f;
+        pointer.numCapVertices = 4;
+        pointer.positionCount = 2;
+
+        var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        pointerMat = new Material(shader);
+        pointer.material = pointerMat;
+        pointer.enabled = false;
+    }
+
+    private void SetPointerColor(bool hover)
+    {
+        var col = hover ? VRLine.CharacterColor() : new Color(0.9f, 0.9f, 0.95f);
+        if (pointerMat.HasProperty("_BaseColor"))
+            pointerMat.SetColor("_BaseColor", col);
+        else
+            pointerMat.color = col;
+    }
+
+    private void EnsureCanvases()
+    {
+        if (left == null)
+        {
+            left = MakeCanvas("PeakVR LeftHUD", VRHands.Left, "LeftHUDAnchor", LeftPos, LeftEuler);
+            LeftHudCanvas = left;
+        }
+        if (right == null)
+            right = MakeCanvas("PeakVR RightHUD", VRHands.Right, "RightHUDAnchor", RightPos, RightEuler);
+    }
+
+    private static Canvas MakeCanvas(string name, Transform hand, string anchorName, Vector3 fallbackPos, Vector3 fallbackEuler)
+    {
+        var go = new GameObject(name);
+
+        var anchor = FindAnchor(hand, anchorName);
+        if (anchor != null)
+        {
+            go.transform.SetParent(anchor, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+        }
+        else
+        {
+            go.transform.SetParent(hand, false);
+            go.transform.localPosition = fallbackPos;
+            go.transform.localRotation = Quaternion.Euler(fallbackEuler);
+        }
+
+        go.transform.localScale = Vector3.one * Scale;
+
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.worldCamera = MainCamera.instance != null ? MainCamera.instance.cam : Camera.main;
+
+        var rt = (RectTransform)canvas.transform;
+        rt.sizeDelta = new Vector2(500f, 220f);
+        return canvas;
+    }
+
+    private static Transform FindAnchor(Transform hand, string anchorName)
+    {
+        foreach (var t in hand.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name == anchorName || t.name == "HUDAnchor")
+                return t;
+        }
+        return null;
+    }
+
+    private void Center(Transform t, Canvas canvas, Vector2 pos)
+    {
+        restore.Record(t);
+        t.SetParent(canvas.transform, false);
+        if (t is RectTransform rt)
+        {
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos;
+            rt.localScale = Vector3.one;
+            rt.localRotation = Quaternion.identity;
+        }
+    }
+}

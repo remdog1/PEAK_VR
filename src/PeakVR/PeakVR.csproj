@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- This is the most appropriate target framework for the game's Unity version. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- This is the GUID of your mod. Example: com.github.YourAccount.BepInExTemplate -->
+    <AssemblyName>com.andrey04o.PeakVR</AssemblyName>
+    <!-- This is the display name of your mod. Example: BepInEx Template -->
+    <AssemblyTitle>PeakVR</AssemblyTitle>
+    <!-- This is the version number of your mod. -->
+    <Version>1.6.0</Version>
+    <DefineConstants>$(DefineConstants);UNITY_XR_MANAGEMENT;UNITY_INPUT_SYSTEM</DefineConstants>
+  </PropertyGroup>
+
+  <!--
+    Build the preloader whenever the plugin builds so its DLL is always produced (it outputs into
+    this project's bin folder, which the Thunderstore package copies from). ReferenceOutputAssembly
+    is false because we only need it built, not referenced at compile time.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Preloader\LCVR.Preload.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <!--
+  How to include thunderstore mods as dependencies via nuget
+
+  We have already added the windows10ce nuget feed to this project
+  in NuGet.Config so all you need to do is list a dependency like
+  this:
+
+  <ItemGroup>
+    <PackageReference Include="ModTeam-ModName" Version="1.0.0" Private="False"/>
+  </ItemGroup>
+
+  Private="false" will stop it from being copied to the output folder
+  during build. This will cause the mod to be downloaded and its
+  methods will be available at compile time for your code. You'll still
+  need to add it as a dependency in your manifest.json, of course
+  -->
+
+</Project>

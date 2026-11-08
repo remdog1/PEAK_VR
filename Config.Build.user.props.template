@@ -1,0 +1,27 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Set if the default steam game install directory doesn't work. -->
+    <!-- <PeakGameRootDir></PeakGameRootDir> -->
+    <!-- Set if your BepInEx/plugins/ directory isn't in the game files. -->
+    <!-- <PeakPluginsDir></PeakPluginsDir> -->
+  </PropertyGroup>
+
+  <Target Name="DeployFiles" AfterTargets="Build">
+    <Error
+      Text="Plugins directory '$([MSBuild]::NormalizeDirectory($(PeakPluginsDir)))' doesn't exist! Configure PeakPluginsDir to point to a valid path in the Config.Build.user.props file."
+      Condition="!Exists('$(PeakPluginsDir)')"
+    />
+
+    <!-- The preloader is a BepInEx patcher, so it goes to BepInEx/patchers/; the plugin goes to plugins/. -->
+    <PropertyGroup>
+      <DeployDir Condition="'$(MSBuildProjectName)' == 'LCVR.Preload'">$([MSBuild]::NormalizeDirectory('$(PeakPluginsDir)', '..', 'patchers'))</DeployDir>
+      <DeployDir Condition="'$(DeployDir)' == ''">$([MSBuild]::NormalizeDirectory('$(PeakPluginsDir)'))</DeployDir>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(DeployDir)" />
+    <Message Text="Deploy → $(DeployDir)$(TargetFileName)" Importance="High" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" />
+  </Target>
+
+</Project>
