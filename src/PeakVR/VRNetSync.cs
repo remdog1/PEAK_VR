@@ -1,17 +1,18 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace PeakVR;
 
 internal class VRNetSync : MonoBehaviour
 {
-    private const float SendInterval = 1f / 20f;
-
     private float sinceSend;
 
     private void Update()
     {
+        VRFingers.SampleLocal();
+
         sinceSend += Time.deltaTime;
-        if (sinceSend < SendInterval)
+        var rate = Plugin.Config != null ? Plugin.Config.HandSyncRate.Value : 20f;
+        if (sinceSend < 1f / Mathf.Max(5f, rate))
             return;
 
         sinceSend = 0f;

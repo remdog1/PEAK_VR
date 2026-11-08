@@ -63,6 +63,14 @@ internal static class VRSettingsPage
             Row.Setting("Arm Span Scale"),
             Row.Action(() => "Open VR Calibration", VRCalibration.Open),
 
+            Row.Heading("Hands"),
+            Row.Setting("Finger Tracking"),
+            Row.Setting("Finger Curl Angle"),
+            Row.Setting("Finger Curl Axis"),
+            Row.Setting("Finger Curl Invert"),
+            Row.Setting("Finger Mirror Left Hand"),
+            Row.Setting("Hand Sync Rate"),
+
             Row.Heading("Lasers"),
             Row.Setting("Interaction Line"),
             Row.Setting("HUD Pointer Line"),

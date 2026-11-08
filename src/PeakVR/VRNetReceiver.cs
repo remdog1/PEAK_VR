@@ -64,6 +64,7 @@ internal class VRNetReceiver : MonoBehaviour
 
         RemoteRolls.Remove(gone);
         Poses.Remove(gone);
+        VRFingers.Forget(gone);
         HeadTiltPatch.RestoreFor(gone);
         VRHandDebug.Hide(gone);
 

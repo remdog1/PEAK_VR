@@ -47,6 +47,12 @@ public class Config
     public ConfigEntry<bool> AimAtObjectCenter { get; }
 
     public ConfigEntry<float> ArmSpanScale { get; }
+    public ConfigEntry<bool> FingerTracking { get; }
+    public ConfigEntry<float> FingerCurlAngle { get; }
+    public ConfigEntry<PeakVR.FingerAxis> FingerCurlAxis { get; }
+    public ConfigEntry<bool> FingerCurlInvert { get; }
+    public ConfigEntry<bool> FingerMirrorLeft { get; }
+    public ConfigEntry<float> HandSyncRate { get; }
     public ConfigEntry<float> VirtualArmSpan { get; }
 
     public ConfigEntry<float> LodBias { get; }
@@ -166,6 +172,23 @@ public class Config
             new ConfigDescription("Multiplier from your real arm reach to the character's arm reach. " +
                 "Calibrate it in-game with the T-pose window instead of editing by hand.",
                 new AcceptableValueRange<float>(0.6f, 1.8f)));
+        FingerTracking = file.Bind("Hands", "Finger Tracking", true,
+            "Curl your character's fingers with the controllers: grip closes the middle, ring and pinky "
+            + "fingers, trigger closes the index finger. Other players with PeakVR see it too.");
+        FingerCurlAngle = file.Bind("Hands", "Finger Curl Angle", 75f,
+            new ConfigDescription("How far each finger joint bends when fully pressed, in degrees.",
+                new AcceptableValueRange<float>(0f, 110f)));
+        FingerCurlAxis = file.Bind("Hands", "Finger Curl Axis", PeakVR.FingerAxis.Z,
+            "Which bone axis the fingers bend around. Only change this if fingers bend sideways.");
+        FingerCurlInvert = file.Bind("Hands", "Finger Curl Invert", false,
+            "Bend the fingers the other way. Turn on if fingers bend backwards.");
+        FingerMirrorLeft = file.Bind("Hands", "Finger Mirror Left Hand", false,
+            "Bend the left hand's fingers the opposite way to the right. Turn on if only one hand bends backwards.");
+        HandSyncRate = file.Bind("Hands", "Hand Sync Rate", 20f,
+            new ConfigDescription("How many times per second your hand pose is sent to other players. "
+                + "Higher looks smoother to them but uses more network traffic.",
+                new AcceptableValueRange<float>(10f, 30f)));
+
         VirtualArmSpan = file.Bind("Internal", "VirtualArmSpan", 1.851f,
             new ConfigDescription("FOR INTERNAL USE ONLY, DO NOT EDIT — cached character wingspan for calibration.",
                 null, "Hidden"));

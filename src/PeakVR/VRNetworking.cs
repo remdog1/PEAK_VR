@@ -30,6 +30,9 @@ internal static class VRNetworking
         public Vector3 rightShoulder;
         public bool hasShoulders;
         public bool hasHands;
+        public bool hasFingers;
+        public VRFingers.Curl leftCurl;
+        public VRFingers.Curl rightCurl;
         public float sinceReceived;
     }
 
@@ -43,6 +46,7 @@ internal static class VRNetworking
         receiver = new GameObject("PeakVR NetReceiver");
         Object.DontDestroyOnLoad(receiver);
         receiver.AddComponent<VRNetReceiver>();
+        receiver.AddComponent<VRFingers>();
         Plugin.Log.LogInfo("[PeakVR][Net] receiver created (runs on all clients)");
     }
 
@@ -90,7 +94,8 @@ internal static class VRNetworking
         Vector3 ls = root.InverseTransformPoint(VRArmIKPatch.LastShoulderLeft);
         Vector3 rs = root.InverseTransformPoint(VRArmIKPatch.LastShoulderRight);
 
-        object[] content = { VRHeadRoll.LocalRoll, lp, lr, rp, rr, lh, rh, ls, rs };
+        // Index 9 (finger curl bytes) is new; older PeakVR versions only read indices 0-8 and ignore it.
+        object[] content = { VRHeadRoll.LocalRoll, lp, lr, rp, rr, lh, rh, ls, rs, VRFingers.PackLocal() };
         PhotonNetwork.RaiseEvent(EventCode, content, SendOptionsToOthers, SendOptions.SendUnreliable);
     }
 
@@ -124,7 +129,8 @@ internal static class VRNetworking
         if (e.Code != EventCode)
             return;
 
-        object[] content = (object[])e.CustomData;
+        if (e.CustomData is not object[] content || content.Length < 7)
+            return;
         RemotePose pose = new RemotePose
         {
             headRoll = (float)content[0],
@@ -140,6 +146,11 @@ internal static class VRNetworking
             hasHands = true,
             sinceReceived = 0f,
         };
+        if (content.Length >= 10 && content[9] is byte[] curls && curls.Length >= 4)
+        {
+            VRFingers.Unpack(curls, out pose.leftCurl, out pose.rightCurl);
+            pose.hasFingers = true;
+        }
         Remotes[e.Sender] = pose;
     }
 }
